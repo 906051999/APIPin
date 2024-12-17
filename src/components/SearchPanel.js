@@ -17,13 +17,13 @@ const PlatformFeatureTag = ({ platform }) => {
   if (platform === 'qq') {
     return (
       <Tag color="blue" className="ml-2 whitespace-nowrap">
-        QQ音乐 <span className="text-xs opacity-75">可选音质</span>
+        Spotify <span className="text-xs opacity-75">可选音质</span>
       </Tag>
     );
   }
   return (
     <Tag color="green" className="ml-2 whitespace-nowrap">
-      网易云 <span className="text-xs opacity-75">含歌词</span>
+      iTunes <span className="text-xs opacity-75">含歌词</span>
     </Tag>
   );
 };

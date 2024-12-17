@@ -17,7 +17,7 @@ export default function RawDataDisplay({ rawData, platform }) {
       className="mt-4"
       extra={
         <Text type="secondary">
-          平台：{platform === 'qq' ? 'QQ音乐' : '网易云'}
+          平台：{platform === 'qq' ? 'Spotify' : 'iTunes'}
         </Text>
       }
     >

@@ -15,11 +15,11 @@ import { useEffect, useState } from 'react';
 export const PlatformTag = ({ platform }) => {
   if (platform === 'qq') {
     return (
-      <Tag color="blue" className="whitespace-nowrap">QQ音乐</Tag>
+      <Tag color="blue" className="whitespace-nowrap">Spotify</Tag>
     );
   }
   return (
-    <Tag color="green" className="whitespace-nowrap">网易云</Tag>
+    <Tag color="green" className="whitespace-nowrap">iTunes</Tag>
   );
 };
 
