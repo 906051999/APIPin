@@ -191,7 +191,21 @@ export default function RequestStatusMonitor() {
 
     const findCurrentLyricIndex = (time) => {
       for (let i = currentSong.lyrics.length - 1; i >= 0; i--) {
-        const lyricTime = currentSong.lyrics[i].time.split(':').reduce((acc, val) => acc * 60 + parseFloat(val), 0);
+        let lyricTime = 0;
+        // 处理不同的时间格式
+        if (typeof currentSong.lyrics[i].time === 'string') {
+          if (currentSong.lyrics[i].time.includes(':')) {
+            // 旧格式 mm:ss 或 mm:ss.SSS
+            lyricTime = currentSong.lyrics[i].time.split(':').reduce((acc, val) => acc * 60 + parseFloat(val), 0);
+          } else {
+            // 新格式 秒数（字符串形式的数字）
+            lyricTime = parseFloat(currentSong.lyrics[i].time);
+          }
+        } else if (typeof currentSong.lyrics[i].time === 'number') {
+          // 数字格式的秒数
+          lyricTime = currentSong.lyrics[i].time;
+        }
+        
         if (time >= lyricTime - 1) return i;
       }
       return -1;
@@ -207,7 +221,7 @@ export default function RequestStatusMonitor() {
 
     audioRef.current?.addEventListener('timeupdate', handleTimeUpdate);
     return () => audioRef.current?.removeEventListener('timeupdate', handleTimeUpdate);
-  }, [currentSong?.lyrics, isPlaying, audioRef]);
+  }, [currentSong?.lyrics, isPlaying, audioRef, currentLyricIndex]);
 
   // 修改获取消息数组的函数
   const getMessageArray = () => {

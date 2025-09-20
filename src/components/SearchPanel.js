@@ -1,29 +1,22 @@
 'use client';
 
-import { Input, Button, List, Dropdown, Tag } from 'antd';
+import { Input, Button, List, Tag } from 'antd';
 import { SearchOutlined, PlayCircleOutlined, CustomerServiceOutlined, FieldTimeOutlined, FileOutlined, DashboardOutlined } from '@ant-design/icons';
 import { useMusic } from '@/contexts/MusicContext';
 
-const QUALITY_OPTIONS = [
-  { value: 5, label: '标准音质' },
-  { value: 9, label: 'HQ高音质' },
-  { value: 11, label: 'SQ无损音质' },
-  { value: 13, label: '臻品全景声' },
-  { value: 14, label: '臻品母带2.0' }
-];
-
 // 添加平台特性标签
 const PlatformFeatureTag = ({ platform }) => {
-  if (platform === 'qq') {
+  if (platform === 'gdstudio') {
     return (
       <Tag color="blue" className="ml-2 whitespace-nowrap">
-        Spotify <span className="text-xs opacity-75">可选音质</span>
+        GD音乐台(music.gdstudio.xyz)
       </Tag>
     );
   }
+  // 其他平台默认显示平台名称
   return (
-    <Tag color="green" className="ml-2 whitespace-nowrap">
-      iTunes <span className="text-xs opacity-75">含歌词</span>
+    <Tag color="default" className="ml-2 whitespace-nowrap">
+      {platform}
     </Tag>
   );
 };
@@ -52,16 +45,6 @@ const PaymentTag = ({ payType }) => {
   );
 };
 
-// 添加音质选择菜单项组件
-const QualityMenuItem = ({ quality, label, selectedQuality, onClick }) => (
-  <div
-    className={`px-4 py-2 cursor-pointer hover:bg-gray-50 ${selectedQuality === quality ? 'text-blue-600' : ''}`}
-    onClick={() => onClick(quality)}
-  >
-    {label}
-  </div>
-);
-
 export default function SearchPanel({ showSearchInput = true }) {
   const { 
     searchTerm, 
@@ -71,30 +54,11 @@ export default function SearchPanel({ showSearchInput = true }) {
     currentSong,
     setCurrentSong,
     setIsPlaying,
-    selectedQuality,
-    setSelectedQuality,
     onSearch,
     onPlaySong,
     isSearching,
     isLoading,
   } = useMusic();
-
-  // 把 renderQualityMenu 移到组件内部
-  const renderQualityMenu = (song) => ({
-    items: QUALITY_OPTIONS.map(opt => ({
-      key: opt.value,
-      label: (
-        <QualityMenuItem
-          quality={opt.value}
-          label={opt.label}
-          selectedQuality={selectedQuality}
-          onClick={(quality) => {
-            setSelectedQuality(quality);
-          }}
-        />
-      ),
-    })),
-  });
 
   return (
     <div className="h-full flex flex-col">
@@ -133,7 +97,7 @@ export default function SearchPanel({ showSearchInput = true }) {
                   {song.singer}
                 </div>
                 {/* 显示 QQ 音乐的详细信息 */}
-                {song.platform === 'qq' && song.details && (
+                {song.platform === 'gdstudio' && song.details && (
                   <div className="mt-2 text-xs space-y-2">
                     {/* 付费标签和发行信息 - 强制在一行显示 */}
                     <div className="flex items-center gap-2 whitespace-nowrap">
@@ -178,28 +142,11 @@ export default function SearchPanel({ showSearchInput = true }) {
 
             {/* 下部分：音质选择和播放按钮 */}
             <div className="w-full flex justify-end items-center gap-2 mt-1">
-              {/* 音质选择在左 */}
-              {song.platform === 'qq' && (
-                <Dropdown
-                  menu={renderQualityMenu(song)}
-                  trigger={['click']}
-                  placement="bottomRight"
-                >
-                  <Button 
-                    size="small"
-                    type="text"
-                    className="text-gray-600 hover:text-blue-600"
-                  >
-                    {QUALITY_OPTIONS.find(opt => opt.value === selectedQuality)?.label}
-                  </Button>
-                </Dropdown>
-              )}
-
-              {/* 播放按钮在右 */}
+              {/* 播放按钮 */}
               <Button 
                 type="text" 
                 icon={<PlayCircleOutlined />} 
-                onClick={() => onPlaySong(song, song.searchIndex, selectedQuality, false, true)}
+                onClick={() => onPlaySong(song, song.searchIndex, null, false, true)}
                 loading={isLoading && currentSong?.name === song.name}
               >
                 播放

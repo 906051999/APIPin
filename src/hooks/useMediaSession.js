@@ -20,18 +20,20 @@ export function useMediaSession({
 
     // 更新媒体会话元数据
     if (currentSong) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentSong.name,
-        artist: currentSong.singer,
-        album: '', // 可选
-        artwork: [
-          {
-            src: currentSong.cover || '/default-cover.jpg',
-            sizes: '512x512',
-            type: 'image/jpeg'
-          }
-        ]
-      });
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentSong.name,
+          artist: currentSong.singer,
+          album: currentSong.album || 'Unknown Album',
+          artwork: [
+            {
+              src: currentSong.cover || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDBweCIgaGVpZ2h0PSIxMDBweCIgdmlld0JveD0iMCAwIDEwMCAxMDAiPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAiIHk9IjUwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMzMzMiPk5PPEJSIi8+PHRleHQgeD0iNTAiIHk9IjcwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMzMzMiPkNvdmVyPC90ZXh0Pjwvc3ZnPg==',
+              sizes: '100x100',
+              type: 'image/svg+xml'
+            }
+          ]
+        });
+      }
 
       // 更新播放状态
       navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';

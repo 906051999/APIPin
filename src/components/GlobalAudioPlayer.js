@@ -228,10 +228,23 @@ export default function GlobalAudioPlayer() {
   };
 
   const handleLyricClick = (timeStr) => {
-    const [minutes, seconds] = timeStr.split(':').map(parseFloat);
-    const newTime = minutes * 60 + seconds;
-    audioRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
+    let newTime;
+    
+    // 处理不同的时间格式
+    if (timeStr.includes(':')) {
+      // 旧格式 mm:ss
+      const [minutes, seconds] = timeStr.split(':').map(parseFloat);
+      newTime = minutes * 60 + seconds;
+    } else {
+      // 新格式 秒数（字符串形式的数字）
+      newTime = parseFloat(timeStr);
+    }
+    
+    // 确保时间是有效的有限数值
+    if (isFinite(newTime) && newTime >= 0) {
+      audioRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
   };
 
   useEffect(() => {
@@ -362,6 +375,9 @@ export default function GlobalAudioPlayer() {
     </button>
   );
 
+  // 默认封面图像 - 使用内联SVG data URL
+  const DEFAULT_COVER = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDBweCIgaGVpZ2h0PSIxMDBweCIgdmlld0JveD0iMCAwIDEwMCAxMDAiPjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAiIHk9IjUwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMzMzMiPk5PPEJSIi8+PHRleHQgeD0iNTAiIHk9IjcwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMzMzMiPkNvdmVyPC90ZXh0Pjwvc3ZnPg==';
+
   return (
     <motion.div 
       className="fixed left-0 right-0 bg-white/80 backdrop-blur-sm"
@@ -404,7 +420,7 @@ export default function GlobalAudioPlayer() {
                         }}
                       >
                         <motion.img 
-                          src={currentSong?.cover || '/default-cover.jpg'}
+                          src={currentSong?.cover || DEFAULT_COVER}
                           alt={currentSong?.name}
                           className="w-full h-full object-cover"
                           variants={coverVariants}
@@ -481,7 +497,7 @@ export default function GlobalAudioPlayer() {
                 
                 <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden shadow-sm">
                   <motion.img 
-                    src={currentSong?.cover || '/default-cover.jpg'}
+                    src={currentSong?.cover || DEFAULT_COVER}
                     alt={currentSong?.name}
                     className="w-full h-full object-cover"
                     variants={coverVariants}

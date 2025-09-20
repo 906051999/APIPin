@@ -13,13 +13,14 @@ import { useEffect, useState } from 'react';
 
 // 平台标签组件
 export const PlatformTag = ({ platform }) => {
-  if (platform === 'qq') {
+  if (platform === 'gdstudio') {
     return (
-      <Tag color="blue" className="whitespace-nowrap">Spotify</Tag>
+      <Tag color="blue" className="whitespace-nowrap">GD音乐台(music.gdstudio.xyz)</Tag>
     );
   }
+  // 其他平台默认显示平台名称
   return (
-    <Tag color="green" className="whitespace-nowrap">iTunes</Tag>
+    <Tag color="default" className="whitespace-nowrap">{platform}</Tag>
   );
 };
 

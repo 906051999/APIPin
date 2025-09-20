@@ -43,7 +43,7 @@ export default function LyricDisplay({ lyrics = [], currentLyricIndex, onLyricCl
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
     >
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {lyrics.map((lyric, index) => {
           const isActive = index === currentLyricIndex;
           const isNearActive = Math.abs(index - currentLyricIndex) <= 2;

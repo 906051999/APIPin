@@ -10,6 +10,13 @@ const MusicContext = createContext(null);
 
 const CURRENT_SONG_KEY = 'currentPlayingSong';
 
+// 创建一个message实例，避免使用全局的message函数
+let messageInstance = null;
+
+export function setMessageInstance(instance) {
+  messageInstance = instance;
+}
+
 export function MusicProvider({ children }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [songs, setSongs] = useState([]);
@@ -63,38 +70,20 @@ export function MusicProvider({ children }) {
     // 如果没有 requestUrl，根据平台构建
     if (!song.requestUrl) {
       const term = encodeURIComponent(searchTerm || `${song.name} ${song.singer}`);
-      return song.platform === 'qq' 
-        ? `/qqdg/?word=${term}&n=${index}`
-        : `/wydg/?msg=${term}&n=${index}`;
+      // 使用新的API管理器格式
+      return `/api/manager?action=detail&platform=gdstudio&term=${term}`;
     }
 
     // 处理旧格式 URL
     if (isOldRequestUrl(song.requestUrl)) {
       const url = new URL(song.requestUrl, 'http://example.com');
       const term = url.searchParams.get('term') || `${song.name} ${song.singer}`;
-      const n = url.searchParams.get('n') || '1';
-      return song.platform === 'qq'
-        ? `/qqdg/?word=${encodeURIComponent(term)}&n=${n}`
-        : `/wydg/?msg=${encodeURIComponent(term)}&n=${n}`;
+      const platform = url.searchParams.get('platform') || 'gdstudio';
+      return `/api/manager?action=detail&platform=${platform}&term=${encodeURIComponent(term)}`;
     }
 
-    // 已经是新格式，但可能缺少参数
-    try {
-      const url = new URL(song.requestUrl, 'http://example.com');
-      const term = url.searchParams.get(song.platform === 'qq' ? 'word' : 'msg') 
-        || `${song.name} ${song.singer}`;
-      const n = url.searchParams.get('n') || '1';
-      
-      return song.platform === 'qq'
-        ? `/qqdg/?word=${encodeURIComponent(term)}&n=${n}`
-        : `/wydg/?msg=${encodeURIComponent(term)}&n=${n}`;
-    } catch {
-      // URL 解析失败，创建新的
-      const term = encodeURIComponent(`${song.name} ${song.singer}`);
-      return song.platform === 'qq'
-        ? `/qqdg/?word=${term}&n=1`
-        : `/wydg/?msg=${term}&n=1`;
-    }
+    // 已经是新格式，直接返回
+    return song.requestUrl;
   };
 
   // 修改 addToHistory 函数
@@ -127,37 +116,26 @@ export function MusicProvider({ children }) {
     if (!searchTerm.trim()) return;
     setIsSearching(true);
     try {
-      const [wyResult, qqResult] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_SBY_API_URL}/wydg/?msg=${encodeURIComponent(searchTerm)}`).then(r => r.json()),
-        fetch(`${process.env.NEXT_PUBLIC_SBY_API_URL}/qqdg/?word=${encodeURIComponent(searchTerm)}`).then(r => r.json())
-      ]);
+      // 使用新的API管理器进行搜索
+      const response = await fetch(`/api/manager?action=search&platform=gdstudio&term=${encodeURIComponent(searchTerm)}`);
+      const result = await response.json();
 
-      const combinedSongs = [];
-      
-      if (wyResult.code === 200) {
-        combinedSongs.push(...wyResult.data.map((song, index) => ({
+      if (result.success) {
+        const formattedSongs = result.data.map((song, index) => ({
           ...song,
-          platform: 'wy',
-          name: song.name || song.song,
-          singer: song.singer || song.author,
+          platform: 'gdstudio',
+          name: song.title || song.name,
+          singer: song.artist || song.singer,
+          coverId: song.coverId, // 确保保留coverId字段
+          lyricId: song.lyricId, // 确保保留lyricId字段
           searchIndex: index,
-          requestUrl: `/wydg/?msg=${encodeURIComponent(searchTerm)}&n=${index + 1}`
-        })));
-      }
+          requestUrl: `/api/manager?action=detail&platform=gdstudio&term=${song.id}`
+        }));
 
-      if (qqResult.code === 200) {
-        const qqSongs = Array.isArray(qqResult.data) ? qqResult.data : [qqResult.data];
-        combinedSongs.push(...qqSongs.map((song, index) => ({
-          ...song,
-          platform: 'qq',
-          name: song.song,
-          singer: song.singer,
-          searchIndex: index,
-          requestUrl: `/qqdg/?word=${encodeURIComponent(searchTerm)}&n=${index + 1}`
-        })));
+        setSongs(formattedSongs);
+      } else {
+        throw new Error(result.error || '搜索失败');
       }
-
-      setSongs(interleaveResults(combinedSongs));
     } catch (error) {
       message.error('搜索失败');
       console.error(error);
@@ -186,8 +164,7 @@ export function MusicProvider({ children }) {
     setIsLoading(true);
     try {
       // 格式化 requestUrl
-      const formattedRequestUrl = formatRequestUrl(song, searchTerm, index);
-      const requestUrl = `${process.env.NEXT_PUBLIC_SBY_API_URL}${formattedRequestUrl}${quality ? `&q=${quality}` : ''}`;
+      const requestUrl = formatRequestUrl(song, searchTerm, index);
 
       const timeoutId = setTimeout(() => {
         currentController.abort();
@@ -199,21 +176,69 @@ export function MusicProvider({ children }) {
       
       clearTimeout(timeoutId);
       
-      const data = await response.json();
+      const result = await response.json();
+      console.log('Song detail result:', result); // 添加调试日志
 
-      if (data.code === 200) {
+      if (result.success) {
+        const data = result.data;
         const updatedSong = {
           ...song,
-          id: data.data?.id || song.id,
-          url: song.platform === 'qq' ? data.data.url : data.mp3,
-          cover: song.platform === 'qq' ? data.data.cover : data.img,
-          lyrics: song.platform === 'qq' ? [] : (data.lyric || []),
+          id: data.id || song.id,
+          url: data.url,
+          cover: data.cover || song.cover,
+          lyrics: data.lyric || data.lyrics || [],
           searchTerm: song.searchTerm || searchTerm,
           searchIndex: song.searchIndex || index,
-          details: song.platform === 'qq' ? data.data : null,
-          requestUrl: formattedRequestUrl,
-          quality: quality
+          details: data,
+          requestUrl: requestUrl,
+          quality: quality,
+          // 确保保留歌曲对象中的coverId和lyricId
+          coverId: data.coverId || song.coverId,
+          lyricId: data.lyricId || song.lyricId
         };
+
+        console.log('Song data before fetching additional resources:', updatedSong); // 添加调试日志
+        console.log('Cover ID:', updatedSong.coverId, 'Lyric ID:', updatedSong.lyricId); // 添加调试日志
+
+        // 直接获取专辑图片和歌词，确保总是获取到这些资源
+        try {
+          // 获取专辑图片
+          if (updatedSong.coverId) {
+            const picUrl = `/api/manager?action=detail&platform=${song.platform}&term=${updatedSong.coverId}&type=pic`;
+            console.log('Fetching picture from:', picUrl); // 添加日志以便调试
+            const picResponse = await fetch(picUrl);
+            const picResult = await picResponse.json();
+            console.log('Picture result:', picResult); // 添加日志以便调试
+            if (picResult.success && picResult.data && picResult.data.url) {
+              updatedSong.cover = picResult.data.url;
+              console.log('Updated cover:', updatedSong.cover); // 添加调试日志
+            }
+          }
+
+          // 获取歌词
+          if (updatedSong.lyricId) {
+            const lyricUrl = `/api/manager?action=detail&platform=${song.platform}&term=${updatedSong.lyricId}&type=lyric`;
+            console.log('Fetching lyrics from:', lyricUrl); // 添加日志以便调试
+            const lyricResponse = await fetch(lyricUrl);
+            const lyricResult = await lyricResponse.json();
+            console.log('Lyrics result:', lyricResult); // 添加日志以便调试
+            if (lyricResult.success && lyricResult.data) {
+              // 歌词可能在lyric或tlyric字段中
+              const lyricContent = lyricResult.data.lyric || lyricResult.data.tlyric || '';
+              console.log('Lyric content:', lyricContent); // 添加调试日志
+              // 确保歌词数据格式正确
+              if (typeof lyricContent === 'string' && lyricContent) {
+                // 解析LRC歌词格式
+                updatedSong.lyrics = parseLyric(lyricContent);
+              } else {
+                updatedSong.lyrics = lyricContent;
+              }
+              console.log('Updated lyrics:', updatedSong.lyrics); // 添加调试日志
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch additional resources:', error);
+        }
 
         if (!updatedSong.url || !isValidUrl(updatedSong.url)) {
           throw new Error('无效的音频 URL');
@@ -224,7 +249,7 @@ export function MusicProvider({ children }) {
         setIsPlaying(isRetry ? isPlaying : true);
         addToHistory(updatedSong);
       } else {
-        throw new Error(data.msg || '获取歌曲详情失败');
+        throw new Error(result.error || '获取歌曲详情失败');
       }
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -355,66 +380,6 @@ export function MusicProvider({ children }) {
   );
 }
 
-// 辅助函数
-function interleaveResults(songs) {
-  const interleavedSongs = [];
-  const maxLength = Math.max(
-    songs.filter(s => s.platform === 'wy').length,
-    songs.filter(s => s.platform === 'qq').length
-  );
-
-  for (let i = 0; i < maxLength; i++) {
-    const wySong = songs.find((s, index) => 
-      s.platform === 'wy' && 
-      songs.filter(x => x.platform === 'wy').indexOf(s) === i
-    );
-    const qqSong = songs.find((s, index) => 
-      s.platform === 'qq' && 
-      songs.filter(x => x.platform === 'qq').indexOf(s) === i
-    );
-    
-    if (wySong) interleavedSongs.push(wySong);
-    if (qqSong) interleavedSongs.push(qqSong);
-  }
-  return interleavedSongs;
-}
-
-function extractQQDetails(data) {
-  return {
-    pay: data.pay,
-    time: data.time,
-    bpm: data.bpm,
-    quality: data.quality,
-    interval: data.interval,
-    size: data.size,
-    kbps: data.kbps
-  };
-}
-
-function formatSongData(data, platform, originalSong) {
-  return platform === 'qq' 
-    ? {
-        name: data.data.song,
-        singer: data.data.singer,
-        url: data.data.url,
-        cover: data.data.cover,
-        lyrics: [],
-        platform,
-        details: originalSong?.details,
-        requestUrl: originalSong?.requestUrl
-      }
-    : {
-        name: data.name,
-        singer: data.author,
-        url: data.mp3,
-        cover: data.img,
-        lyrics: data.lyric || [],
-        platform,
-        details: originalSong?.details,
-        requestUrl: originalSong?.requestUrl
-      };
-}
-
 export const useMusic = () => {
   const context = useContext(MusicContext);
   if (!context) {
@@ -422,6 +387,36 @@ export const useMusic = () => {
   }
   return context;
 }; 
+
+// 添加LRC歌词解析函数
+function parseLyric(lrc) {
+  const lyrics = [];
+  const lines = lrc.split('\n');
+  
+  for (const line of lines) {
+    // 匹配时间标签 [mm:ss.xx] 或 [mm:ss]
+    const timeMatch = line.match(/\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/);
+    if (timeMatch) {
+      const minute = parseInt(timeMatch[1]);
+      const second = parseInt(timeMatch[2]);
+      const millisecond = timeMatch[3] ? parseInt(timeMatch[3]) : 0;
+      const time = minute * 60 + second + millisecond / 1000;
+      
+      // 提取歌词文本（去除时间标签）
+      const text = line.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim();
+      
+      // 只添加非空歌词行
+      if (text) {
+        lyrics.push({
+          time: time.toFixed(3),
+          name: text
+        });
+      }
+    }
+  }
+  
+  return lyrics;
+}
 
 // 添加 URL 验证辅助函数
 function isValidUrl(url) {
@@ -435,5 +430,6 @@ function isValidUrl(url) {
 
 // 在 MusicProvider 中添加辅助函数
 const isOldRequestUrl = (url) => {
-  return url?.startsWith('/api/sby');
+  // 更新检查旧URL的逻辑，检查是否包含旧的API路径
+  return url?.includes('/api/sby') || url?.includes('wydg') || url?.includes('qqdg');
 };
